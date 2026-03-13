@@ -36,7 +36,7 @@ python compress_pkg.py <game-folder> <output-folder> --level 3
 Example:
 
 ```bash
-python compress_pkg.py my-game-package my-game-compressed --level 3
+python compress_pkg.py <src_folder> <output_folder> --level 3
 ```
 
 ### What `--level` means
@@ -86,24 +86,15 @@ Why this design is used:
 
 Transfer the whole compressed output folder (not only manifest) to PS5 storage or USB.
 
-Example source on PS5:
-- `/mnt/usb0/PPSA17221-compressed`
-
 ## Decompress On PS5
 
 Run:
 
 ```bash
-ZSTDecompressionPS5.elf <manifest.txt> <src_base> <dst_base>
-```
-
-Example:
-
-```bash
 ZSTDecompressionPS5.elf \
-  /mnt/usb0/PPSA17221-compressed/manifest.txt \
-  /mnt/usb0/PPSA17221-compressed \
-  /data/game/PPSA17221-app
+  /mnt/usb0/gamepackage/manifest.txt \
+  /mnt/usb0/gamepackage-compressed \
+  /data/game/gamepackage-app
 ```
 
 ## Single-File exFAT Package (`.exfat.zst`)
@@ -120,7 +111,7 @@ One compressed file instead of thousands of `.zst` files, mountable by ShadowMou
 **One Command — Creates Both `.exfat` and `.exfat.zst` Automatically:**
 
 ```cmd
-make_image_and_compress.bat "game-package.exfat" "game-folder"
+make_image_and_compress.bat "<output_name>.exfat" "<source_folder>"
 ```
 
 **What happens:**
@@ -128,14 +119,10 @@ make_image_and_compress.bat "game-package.exfat" "game-folder"
 2. Automatically compresses to `.exfat.zst` (~37% of original)
 3. Done — both files ready
 
-**Output files:**
-- `game-package.exfat` (1.7+ GB)
-- `game-package.exfat.zst` (0.6+ GB) — ready to transfer
-
 **Manual compression (if you already have `.exfat` file):**
 
 ```bash
-python compress_image.py game-package.exfat game-package.exfat.zst
+python compress_image.py <input_name>.exfat <output_name>.exfat.zst
 ```
 
 ### Restore on PS5
@@ -143,9 +130,10 @@ python compress_image.py game-package.exfat game-package.exfat.zst
 FTP the output folder to PS5 storage, then run:
 
 ```bash
-ZSTDecompressionPS5.elf manifest.txt <src_dir_on_ps5> <dst_dir_on_ps5>
-# Restores game-package.exfat to <dst_dir_on_ps5>/
-# ShadowMountPlus will auto-mount it from there.
+ZSTDecompressionPS5.elf \
+  /mnt/usb0/gamepackage/manifest.txt \
+  /mnt/usb0/gamepackage-compressed \
+  /data/game/gamepackage-app
 ```
 
 ---
@@ -200,8 +188,8 @@ After installation, ShadowMountPlus automatically scans default paths and mounts
 
 ```
 /data/imgmnt/exfatmnt/
-  game-package.exfat        ← auto-mounted
-  another-game.exfat
+  <image1>.exfat        ← auto-mounted
+  <image2>.exfat
 ```
 
 ### Configuration
@@ -212,7 +200,7 @@ Optional: create `/data/shadowmount/config.ini` for runtime settings:
 debug=1
 mount_read_only=1
 exfat_backend=lvd
-image_rw=game-package.exfat
+image_rw=<image_filename>
 ```
 
 **Key options:**
