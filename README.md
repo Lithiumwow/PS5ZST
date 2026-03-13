@@ -9,9 +9,7 @@ This project uses:
 ## Included Files
 
 - `compress_pkg.py` : compresses a game folder into `.zst` files and manifest
-- `decompress_ps5.c` : source for PS5 decompressor
 - `ZSTDecompressionPS5.elf` : ready PS5 decompressor ELF
-- `scripts/pack_zst_manifest_wsl.sh` : helper script to run compressor from WSL
 
 ## Requirements (PC)
 
@@ -125,8 +123,8 @@ ZSTDecompressionPS5.elf \
   /data/game/PPSA17221-app
 ```
 
-## Optional WSL Helper
+## Acknowledgements
 
-```bash
-wsl bash scripts/pack_zst_manifest_wsl.sh PPSA17221-app PPSA17221-compressed 3
-```
+Thanks to **earthonion** for his input and information.
+
+Related project: [mkufs2](https://github.com/earthonion/mkufs2) — create UFS images mountable by PS5/PS4.
