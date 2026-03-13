@@ -32,13 +32,13 @@ pip install zstandard
 From workspace root:
 
 ```bash
-python compress_pkg.py <GAME_FOLDER> <OUTPUT_FOLDER> --level 3
+python compress_pkg.py <game-folder> <output-folder> --level 3
 ```
 
 Example:
 
 ```bash
-python compress_pkg.py PPSA17221-app PPSA17221-compressed --level 3
+python compress_pkg.py my-game-package my-game-compressed --level 3
 ```
 
 ### What `--level` means
@@ -63,7 +63,7 @@ Output folder contains:
 
 ## Average Compression And Transfer Savings
 
-Real run example from this project (`PPSA17221-app`, level `3`):
+Real run example from this project (game-package, level `3`):
 
 - Original size: `1,104,719,782` bytes
 - Compressed size: `688,237,588` bytes
@@ -142,22 +142,22 @@ One compressed file instead of thousands of `.zst` files, mountable by ShadowMou
 **One Command — Creates Both `.exfat` and `.exfat.zst` Automatically:**
 
 ```cmd
-make_image_and_compress.bat "PPSA12345-osfmount.exfat" "PPSA12345-app"
+make_image_and_compress.bat "game-package.exfat" "game-folder"
 ```
 
 **What happens:**
-1. Creates 2GB `.exfat` image from source folder
+1. Creates exFAT image from source folder
 2. Automatically compresses to `.exfat.zst` (~37% of original)
 3. Done — both files ready
 
 **Output files:**
-- `PPSA12345-osfmount.exfat` (1.7 GB)
-- `PPSA12345-osfmount.exfat.zst` (0.6 GB) — ready to transfer
+- `game-package.exfat` (1.7+ GB)
+- `game-package.exfat.zst` (0.6+ GB) — ready to transfer
 
 **Manual compression (if you already have `.exfat` file):**
 
 ```bash
-python compress_image.py PPSA12345-osfmount.exfat PPSA12345-osfmount.exfat.zst
+python compress_image.py game-package.exfat game-package.exfat.zst
 ```
 
 ### Pure Python — One Command (Option A)
@@ -172,7 +172,7 @@ FTP the output folder to PS5 storage, then run:
 
 ```bash
 ZSTDecompressionPS5.elf manifest.txt <src_dir_on_ps5> <dst_dir_on_ps5>
-# Restores PPSA12345.exfat to <dst_dir_on_ps5>/
+# Restores game-package.exfat to <dst_dir_on_ps5>/
 # ShadowMountPlus will auto-mount it from there.
 ```
 
@@ -228,8 +228,8 @@ After installation, ShadowMountPlus automatically scans default paths and mounts
 
 ```
 /data/imgmnt/exfatmnt/
-  PPSA12345-game.exfat      ← auto-mounted
-  PPSA54321-game.exfat
+  game-package.exfat        ← auto-mounted
+  another-game.exfat
 ```
 
 ### Configuration
@@ -240,7 +240,7 @@ Optional: create `/data/shadowmount/config.ini` for runtime settings:
 debug=1
 mount_read_only=1
 exfat_backend=lvd
-image_rw=PPSA12345-my-game.exfat
+image_rw=game-package.exfat
 ```
 
 **Key options:**
@@ -274,8 +274,8 @@ See [ShadowMountPlus README](https://github.com/drakmor/ShadowMountPlus/blob/mai
 
 **PS5 Payloads & Tools:**
 - **ShadowMountPlus**  [drakmor](https://github.com/drakmor)  automated image auto-mounter for PS5 (https://github.com/drakmor/ShadowMountPlus)
-  - Originally based on ShadowMount by VoidWhisper
-  - Contributors: EchoStretch (kstuff-toggle), BestPig (BackPort), and the PS5 R&D community
+  - Originally based on [ShadowMount](https://github.com/VoidWhisper) by [VoidWhisper](https://github.com/VoidWhisper)
+  - Contributors: EchoStretch (kstuff-toggle), BestPig (BackPort)
 
 **Compression & File Handling:**
 - **Zstandard (zstd)**  Meta/Facebook (https://facebook.github.io/zstd/)  modern lossless compression
@@ -287,7 +287,6 @@ See [ShadowMountPlus README](https://github.com/drakmor/ShadowMountPlus/blob/mai
 
 **Community & Testing:**
 - Thanks to **earthonion** for input and information
-- Thanks to **LightningMods** and the active PS5 modding community
 
 **License:**
 
