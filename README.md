@@ -27,7 +27,6 @@ pip install zstandard
 
 ## Create ZST Package
 
-From workspace root:
 
 ```bash
 python compress_pkg.py <game-folder> <output-folder> --level 3
@@ -63,12 +62,6 @@ Output folder contains:
 
 `ZST` (Zstandard) is a modern lossless compression format designed for strong speed/ratio balance.
 
-Key points:
-
-- Lossless: original bytes are restored exactly.
-- Very fast decompression: good for restore workflows.
-- Tunable levels: lower levels are faster to compress, higher levels usually produce smaller output.
-- Stream/frame format: ZST compresses byte streams, not folder trees by itself.
 
 How this project uses ZST:
 
@@ -76,11 +69,6 @@ How this project uses ZST:
 - `manifest.txt` stores source and destination mapping plus sizes.
 - `ZSTDecompressionPS5.elf` reads the manifest and restores files in the original folder layout.
 
-Why this design is used:
-
-- Reliable path reconstruction on PS5.
-- Easy progress tracking and failure visibility per file.
-- No dependency on archive extraction tools.
 
 ## Transfer To PS5
 
@@ -116,7 +104,7 @@ make_image_and_compress.bat "<output_name>.exfat" "<source_folder>"
 
 **What happens:**
 1. Creates exFAT image from source folder
-2. Automatically compresses to `.exfat.zst` (~37% of original)
+2. Automatically compresses to `.exfat.zst`
 3. Done — both files ready
 
 **Manual compression (if you already have `.exfat` file):**
@@ -127,14 +115,7 @@ python compress_image.py <input_name>.exfat <output_name>.exfat.zst
 
 ### Restore on PS5
 
-FTP the output folder to PS5 storage, then run:
-
-```bash
-ZSTDecompressionPS5.elf \
-  /mnt/usb0/gamepackage/manifest.txt \
-  /mnt/usb0/gamepackage-compressed \
-  /data/game/gamepackage-app
-```
+FTP the output folder to PS5 storage, then send the payload using any commercially available tool
 
 ---
 
@@ -159,15 +140,7 @@ Use a payload sender (NetCat GUI, web loader, etc.) to send `shadowmountplus.elf
 1. Send `shadowmountplus.elf`
 2. Wait for notification: "ShadowMount+"
 
-#### Method 2 — AutoLoader (Recommended)
 
-Add to `autoload.txt` for plk-autoloader to start on every boot:
-
-```
-shadowmountplus.elf
-!3000
-kstuff.elf
-```
 
 ### Usage
 
@@ -235,7 +208,7 @@ See [ShadowMountPlus README](https://github.com/drakmor/ShadowMountPlus/blob/mai
 **PS5 Payloads & Tools:**
 - **ShadowMountPlus**  [drakmor](https://github.com/drakmor)  automated image auto-mounter for PS5 (https://github.com/drakmor/ShadowMountPlus)
   - Originally based on [ShadowMount](https://github.com/VoidWhisper) by [VoidWhisper](https://github.com/VoidWhisper)
-  - Contributors: EchoStretch (kstuff-toggle), BestPig (BackPort)
+ 
 
 **Compression & File Handling:**
 - **Zstandard (zstd)**  Meta/Facebook (https://facebook.github.io/zstd/)  modern lossless compression
