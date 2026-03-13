@@ -59,26 +59,6 @@ Output folder contains:
 - many `.zst` files
 - `manifest.txt`
 
-## Average Compression And Transfer Savings
-
-Real run example from this project (game-package, level `3`):
-
-- Original size: `1,104,719,782` bytes
-- Compressed size: `688,237,588` bytes
-- Compression ratio: `62.3%` (compressed size as a percent of original)
-- Transfer savings: `37.7%`
-
-What this means in practice:
-
-- You transfer about `0.62x` of the original data size.
-- If your network transfer is the main bottleneck, expected transfer time is around `1.6x` faster than uncompressed copy.
-
-Notes:
-
-- Results vary by game content and file types.
-- Already-compressed assets may not shrink much.
-- Some tiny files can grow slightly due to compression framing overhead.
-
 ## About ZST Format
 
 `ZST` (Zstandard) is a modern lossless compression format designed for strong speed/ratio balance.
@@ -157,12 +137,6 @@ make_image_and_compress.bat "game-package.exfat" "game-folder"
 ```bash
 python compress_image.py game-package.exfat game-package.exfat.zst
 ```
-
-### Pure Python — One Command (Option A)
-
-No OSFMount, no admin rights required. Uses built-in exFAT writer.
-
-`make_exfat_zst.py` uses the built-in pure-Python writer (`mkexfat.py`), then compresses and writes manifest.
 
 ### Restore on PS5
 
