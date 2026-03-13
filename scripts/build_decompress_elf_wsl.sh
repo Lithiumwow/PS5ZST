@@ -3,12 +3,12 @@ set -euo pipefail
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
   echo "Usage: $0 <source_c_file> [output_elf]"
-  echo "Example: $0 zstd_deploy/decompress_ps5.c zstd_deploy/decompress_ps5_ps5.elf"
+  echo "Example: $0 decompress_ps5.c ZSTDecompressionPS5.elf"
   exit 1
 fi
 
 SRC_FILE="$1"
-OUT_FILE="${2:-zstd_deploy/decompress_ps5_ps5.elf}"
+OUT_FILE="${2:-ZSTDecompressionPS5.elf}"
 SDK_WORK="/tmp/ps5sdk_build"
 
 if [ ! -f "$SRC_FILE" ]; then

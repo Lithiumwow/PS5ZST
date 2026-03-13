@@ -22,8 +22,8 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-COMPRESS_PY="$PROJECT_ROOT/zstd_deploy/compress_pkg.py"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPRESS_PY="$PROJECT_ROOT/compress_pkg.py"
 
 if [ ! -f "$COMPRESS_PY" ]; then
   echo "ERROR: compress_pkg.py not found at $COMPRESS_PY"
