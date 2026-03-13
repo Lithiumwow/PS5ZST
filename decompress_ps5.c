@@ -66,6 +66,8 @@
 #define IO_BUF     (4 * 1024 * 1024)   /* 4 MB I/O buffer              */
 #define MAX_PATH   4096
 #define MAX_LINE   (MAX_PATH * 2 + 64)
+#define DECOMP_HEARTBEAT_SEC 10
+#define DECOMP_HEARTBEAT_BYTES (256ULL * 1024ULL * 1024ULL)
 
 typedef struct notify_request {
     char useless1[45];
@@ -138,10 +140,13 @@ static void notify_file_progress(const char *mode, int processed, int total)
         return;
     }
 
-    /* Keep notifications sparse but visible during long runs. */
-    if (processed == 1 || processed == total || (processed % 10) == 0) {
-        char nmsg[128];
-        snprintf(nmsg, sizeof(nmsg), "decompress_ps5: %s file %d/%d", mode, processed, total);
+    int pct = (processed * 100) / total;
+    int prev_pct = ((processed - 1) * 100) / total;
+
+    /* Prefer percentage-based milestones over raw file counters. */
+    if (processed == 1 || processed == total || (pct / 5) > (prev_pct / 5)) {
+        char nmsg[160];
+        snprintf(nmsg, sizeof(nmsg), "decompress_ps5: %s %d%% (%d/%d)", mode, pct, processed, total);
         notify_status(nmsg);
     }
 }
@@ -239,8 +244,12 @@ static int decompress_file(const char *src, const char *dst)
         ZSTD_inBuffer  in  = { ibuf, 0, 0 };
         size_t         n;
         long long      written = 0;
+        unsigned long long read_bytes = 0;
+        unsigned long long last_read_report = 0;
+        time_t last_tick = time(NULL);
 
         while ((n = fread(ibuf, 1, IO_BUF, fin)) > 0) {
+            read_bytes += (unsigned long long)n;
             in.src  = ibuf;
             in.size = n;
             in.pos  = 0;
@@ -257,6 +266,22 @@ static int decompress_file(const char *src, const char *dst)
                     goto done;
                 }
                 written += (long long)out.pos;
+            }
+
+            {
+                time_t now = time(NULL);
+                if ((read_bytes - last_read_report) >= DECOMP_HEARTBEAT_BYTES ||
+                    (last_tick != 0 && (now - last_tick) >= DECOMP_HEARTBEAT_SEC)) {
+                    char nmsg[192];
+                    unsigned long long in_mb = read_bytes / (1024ULL * 1024ULL);
+                    unsigned long long out_mb = (unsigned long long)written / (1024ULL * 1024ULL);
+                    snprintf(nmsg, sizeof(nmsg),
+                             "decompress_ps5: working in=%lluMB out=%lluMB",
+                             in_mb, out_mb);
+                    notify_status(nmsg);
+                    last_read_report = read_bytes;
+                    last_tick = now;
+                }
             }
         }
 
@@ -364,7 +389,7 @@ static void scan_count_zst(const char *root, int *count, scan_heartbeat_t *hb)
 }
 
 /* ------------------------------------------------------------------ */
-static void decompress_found_file(const char *src_path, int *ok, int *failed)
+static void decompress_found_file(const char *src_path, int *ok, int *failed, int *removed)
 {
     char dst_path[MAX_PATH];
     if (inplace_dst_path(src_path, dst_path, sizeof(dst_path)) != 0) {
@@ -378,6 +403,9 @@ static void decompress_found_file(const char *src_path, int *ok, int *failed)
         (*ok)++;
         if (remove(src_path) == 0) {
             printf("  [DEL] %s\n", src_path);
+            if (removed) {
+                (*removed)++;
+            }
         } else {
             fprintf(stderr, "  [WARN] could not delete %s (%s)\n", src_path, strerror(errno));
         }
@@ -389,7 +417,7 @@ static void decompress_found_file(const char *src_path, int *ok, int *failed)
 /* ------------------------------------------------------------------ */
 static void scan_and_decompress(const char *root, int *listed, int *ok, int *failed,
                                 int *processed, int total, int *last_bucket,
-                                const char *mode, scan_heartbeat_t *hb)
+                                const char *mode, scan_heartbeat_t *hb, int *removed)
 {
     DIR *dir = opendir(root);
     if (!dir) {
@@ -422,7 +450,7 @@ static void scan_and_decompress(const char *root, int *listed, int *ok, int *fai
                 heartbeat_tick(hb, *processed, "decompressing");
             }
             scan_and_decompress(path, listed, ok, failed, processed,
-                                total, last_bucket, mode, hb);
+                                total, last_bucket, mode, hb, removed);
             continue;
         }
 
@@ -440,8 +468,11 @@ static void scan_and_decompress(const char *root, int *listed, int *ok, int *fai
         }
 
         (*listed)++;
-        printf("[%d/%d] found .zst\n", *listed, total);
-        decompress_found_file(path, ok, failed);
+        {
+            int pct = (total > 0) ? ((*listed * 100) / total) : 0;
+            printf("[%d%%] found .zst\n", pct);
+        }
+        decompress_found_file(path, ok, failed, removed);
         (*processed)++;
         notify_file_progress(mode, *processed, total);
         notify_progress(mode, *processed, total, last_bucket);
@@ -490,7 +521,8 @@ static void scan_usb_mounts_count(int *count)
 /* ------------------------------------------------------------------ */
 static void scan_usb_mounts_decompress(int *listed, int *ok, int *failed,
                                        int *processed, int total,
-                                       int *last_bucket, const char *mode)
+                                       int *last_bucket, const char *mode,
+                                       int *removed)
 {
     DIR *mnt = opendir("/mnt");
     if (!mnt) {
@@ -521,7 +553,7 @@ static void scan_usb_mounts_decompress(int *listed, int *ok, int *failed,
 
         printf("  - %s\n", path);
         scan_and_decompress(path, listed, ok, failed, processed,
-                    total, last_bucket, mode, NULL);
+                    total, last_bucket, mode, NULL, removed);
     }
 
     closedir(mnt);
@@ -563,7 +595,7 @@ static int run_manifest_mode(const char *manifest_path, const char *src_base, co
         return 1;
     }
 
-    int ok = 0, failed = 0, processed = 0;
+    int ok = 0, failed = 0, processed = 0, removed = 0;
     int last_bucket = 0;
 
     while (fgets(line, sizeof(line), mf)) {
@@ -601,13 +633,23 @@ static int run_manifest_mode(const char *manifest_path, const char *src_base, co
             mkdirs(dst_dir);
         }
 
-        printf("[%d] %s\n    -> %s  (%lld bytes)\n",
-               processed + 1, src_rel, dst_path, orig_size);
+        {
+            int pct = (total > 0) ? (((processed + 1) * 100) / total) : 0;
+            printf("[%d%%] %s\n    -> %s  (%lld bytes)\n",
+                   pct, src_rel, dst_path, orig_size);
+        }
 
-        if (decompress_file(src_path, dst_path) == 0)
+        if (decompress_file(src_path, dst_path) == 0) {
             ok++;
-        else
+            if (remove(src_path) == 0) {
+                removed++;
+                printf("  [DEL] %s\n", src_path);
+            } else {
+                fprintf(stderr, "  [WARN] could not delete %s (%s)\n", src_path, strerror(errno));
+            }
+        } else {
             failed++;
+        }
 
         processed++;
         notify_file_progress("manifest", processed, total);
@@ -618,10 +660,10 @@ static int run_manifest_mode(const char *manifest_path, const char *src_base, co
 
     printf("--------------------------------------------\n");
     notify_progress("manifest", total, total, &last_bucket);
-    printf("Done: %d OK,  %d failed,  %d total\n", ok, failed, processed);
+    printf("Done: %d OK,  %d failed,  %d removed,  %d total\n", ok, failed, removed, processed);
     snprintf(nmsg, sizeof(nmsg),
-             "decompress_ps5: done (manifest) ok=%d fail=%d total=%d",
-             ok, failed, processed);
+             "decompress_ps5: COMPLETE 100%% (manifest) ok=%d fail=%d removed=%d total=%d",
+             ok, failed, removed, processed);
     notify_status(nmsg);
 
     return failed > 0 ? 1 : 0;
@@ -635,6 +677,7 @@ static int run_auto_mode(int root_count, char **roots)
     int processed = 0;
     int ok = 0;
     int failed = 0;
+    int removed = 0;
     int last_bucket = 0;
     scan_heartbeat_t hb;
     char nmsg[256];
@@ -667,10 +710,10 @@ static int run_auto_mode(int root_count, char **roots)
             for (size_t i = 0; i < sizeof(DEFAULT_SCAN_ROOTS) / sizeof(DEFAULT_SCAN_ROOTS[0]); i++) {
                 printf("[DECOMP] %s\n", DEFAULT_SCAN_ROOTS[i]);
                 scan_and_decompress(DEFAULT_SCAN_ROOTS[i], &listed, &ok, &failed,
-                                    &processed, total, &last_bucket, "auto", &hb);
+                                                &processed, total, &last_bucket, "auto", &hb, &removed);
             }
             scan_usb_mounts_decompress(&listed, &ok, &failed,
-                                       &processed, total, &last_bucket, "auto");
+                                                    &processed, total, &last_bucket, "auto", &removed);
         }
     } else {
         printf("  Roots:\n");
@@ -694,7 +737,7 @@ static int run_auto_mode(int root_count, char **roots)
             for (int i = 0; i < root_count; i++) {
                 printf("[DECOMP] %s\n", roots[i]);
                 scan_and_decompress(roots[i], &listed, &ok, &failed,
-                                    &processed, total, &last_bucket, "auto", &hb);
+                                    &processed, total, &last_bucket, "auto", &hb, &removed);
             }
         }
     }
@@ -705,10 +748,10 @@ static int run_auto_mode(int root_count, char **roots)
 
     printf("--------------------------------------------\n");
     notify_progress("auto", total, total, &last_bucket);
-    printf("Done: %d OK,  %d failed,  %d total .zst\n", ok, failed, processed);
+    printf("Done: %d OK,  %d failed,  %d removed,  %d total .zst\n", ok, failed, removed, processed);
     snprintf(nmsg, sizeof(nmsg),
-             "decompress_ps5: done (auto) ok=%d fail=%d total=%d",
-             ok, failed, processed);
+             "decompress_ps5: COMPLETE 100%% (auto) ok=%d fail=%d removed=%d total=%d",
+             ok, failed, removed, processed);
     notify_status(nmsg);
     return failed > 0 ? 1 : 0;
 }
