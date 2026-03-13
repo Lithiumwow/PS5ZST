@@ -58,6 +58,49 @@ Output folder contains:
 - many `.zst` files
 - `manifest.txt`
 
+## Average Compression And Transfer Savings
+
+Real run example from this project (`PPSA17221-app`, level `3`):
+
+- Original size: `1,104,719,782` bytes
+- Compressed size: `688,237,588` bytes
+- Compression ratio: `62.3%` (compressed size as a percent of original)
+- Transfer savings: `37.7%`
+
+What this means in practice:
+
+- You transfer about `0.62x` of the original data size.
+- If your network transfer is the main bottleneck, expected transfer time is around `1.6x` faster than uncompressed copy.
+
+Notes:
+
+- Results vary by game content and file types.
+- Already-compressed assets may not shrink much.
+- Some tiny files can grow slightly due to compression framing overhead.
+
+## About ZST Format
+
+`ZST` (Zstandard) is a modern lossless compression format designed for strong speed/ratio balance.
+
+Key points:
+
+- Lossless: original bytes are restored exactly.
+- Very fast decompression: good for restore workflows.
+- Tunable levels: lower levels are faster to compress, higher levels usually produce smaller output.
+- Stream/frame format: ZST compresses byte streams, not folder trees by itself.
+
+How this project uses ZST:
+
+- `compress_pkg.py` compresses each file into a matching `.zst` file.
+- `manifest.txt` stores source and destination mapping plus sizes.
+- `ZSTDecompressionPS5.elf` reads the manifest and restores files in the original folder layout.
+
+Why this design is used:
+
+- Reliable path reconstruction on PS5.
+- Easy progress tracking and failure visibility per file.
+- No dependency on archive extraction tools.
+
 ## Transfer To PS5
 
 Transfer the whole compressed output folder (not only manifest) to PS5 storage or USB.
