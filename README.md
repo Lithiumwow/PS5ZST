@@ -10,11 +10,9 @@ This project uses:
 
 - `compress_pkg.py` : compresses a game folder into `.zst` files and manifest
 - `compress_image.py` : compresses a single `.exfat` image to `.exfat.zst`
-- `make_image.bat` : creates `.exfat` image using OSFMount (Windows, requires Admin)
 - `make_image_and_compress.bat` : creates `.exfat` and automatically compresses to `.zst` (Windows, requires Admin)
-- `New-OsfExfatImage.ps1` : PowerShell backend for `make_image.bat`
+- `New-OsfExfatImage.ps1` : PowerShell backend for `make_image_and_compress.bat`
 - `ZSTDecompressionPS5.elf` : ready PS5 decompressor ELF
-- `shadowmountplus.elf` : PS5 auto-mounter payload (optional, for mounting images directly)
 
 ## Requirements (PC)
 
@@ -188,7 +186,7 @@ ZSTDecompressionPS5.elf manifest.txt <src_dir_on_ps5> <dst_dir_on_ps5>
 
 **Latest Release:** https://github.com/drakmor/ShadowMountPlus/releases
 
-**Download:** `shadowmountplus.elf`
+**Download:** Get the latest `shadowmountplus.elf` from [ShadowMountPlus Releases](https://github.com/drakmor/ShadowMountPlus/releases)
 
 ### Installation
 
