@@ -133,8 +133,6 @@ function Format-Bytes([Int64]$bytes) {
 
 function Get-FreeDriveLetter {
   $used = (Get-PSDrive -PSProvider FileSystem).Name
-  # Add commonly locked drive letters that may not be reported by Get-PSDrive (e.g., OSFMount phantom drives)
-  $used += @("G", "H", "I", "J", "K", "L")
   foreach ($code in 68..90) {
     $letter = [char]$code
     if ($used -notcontains [string]$letter) { return [string]$letter }
@@ -225,31 +223,24 @@ function Format-AllocationUnitArg([int]$clusterSize) {
   return "$clusterSize"
 }
 
-function Dismount-OsfVolume([string]$osfPath, [string]$mountPoint, [int]$maxAttempts = 20) {
+function Dismount-OsfVolume([string]$osfPath, [string]$mountPoint, [int]$maxAttempts = 6) {
   if ([string]::IsNullOrWhiteSpace($mountPoint)) { return $false }
 
   $targets = @($mountPoint)
   if (-not $mountPoint.EndsWith("\")) { $targets += "$mountPoint\" }
 
-  Write-Host "[Dismount] Attempting to dismount $mountPoint ($maxAttempts attempts)..."
-  
   for ($i = 1; $i -le $maxAttempts; $i++) {
     foreach ($target in $targets) {
       try {
         & $osfPath -d -m $target 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) { 
-          Write-Host "[Dismount] Successfully dismounted $mountPoint on attempt $i"
-          return $true 
-        }
+        if ($LASTEXITCODE -eq 0) { return $true }
       } catch {
         # Retry: volume can remain busy for a short time after format/copy.
       }
     }
-    Write-Host "[Dismount] Attempt $i/$maxAttempts failed, retrying in 500ms..."
     Start-Sleep -Milliseconds 500
   }
 
-  Write-Host "[Dismount] WARNING: Could not gracefully dismount $mountPoint after $maxAttempts attempts"
   return $false
 }
 
@@ -399,7 +390,7 @@ finally {
       # Best effort only.
     }
 
-    if (-not (Dismount-OsfVolume -osfPath $osf -mountPoint $MountPoint -maxAttempts 20)) {
+    if (-not (Dismount-OsfVolume -osfPath $osf -mountPoint $MountPoint -maxAttempts 6)) {
       Write-Warning "Failed to dismount OSFMount volume ($MountPoint): access denied or volume busy."
     }
   }

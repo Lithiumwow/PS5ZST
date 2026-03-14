@@ -66,22 +66,33 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-REM Step 1.5: Wait for OSFMount to fully complete
+REM Step 1.5: Wait for OSFMount to fully complete and dismount
 echo.
-echo [Step 1.5/2] Waiting for OSFMount process to complete...
+echo [Step 1.5/2] Waiting for OSFMount to unmount and close handles...
 echo.
+
+REM Give Windows time to flush all file buffers
+timeout /t 2 /nobreak
+echo   - Flushed file buffers (2 seconds)
+
+REM First, try graceful dismount using PowerShell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-Volume | Where-Object {$_.DriveType -eq 'Fixed' -and $_.FileSystem -eq 'exFAT'} | Foreach-Object {[System.IO.DriveInfo]::new($_.DriveLetter).DriveFormat | Out-Null}" 2>nul
+
+REM Wait for all file handles to release
+timeout /t 3 /nobreak
+echo   - Waited for file handles (3 seconds)
 
 REM Force-kill OSFMount to ensure clean state and full resource release
 taskkill /IM osfmount.exe /F /T 2>nul
 if %errorlevel% equ 0 (
-    echo   - OSFMount process terminated
+    echo   - OSFMount process force-terminated
 ) else (
     echo   - OSFMount not running (already cleaned up)
 )
 
-REM Wait for file handles to fully release
-timeout /t 3 /nobreak
-echo   - Waiting 3 seconds for file handles to release...
+REM Extra wait before compression
+timeout /t 2 /nobreak
+echo   - Final cleanup delay (2 seconds)
 echo.
 
 REM Step 2: Compress to ZST

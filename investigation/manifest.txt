@@ -1,0 +1,4 @@
+# PS5 Decompressor Manifest v1
+# Fields: src_rel|dst_rel|original_size|compressed_size
+#
+test-game-2gb.exfat.zst|test-game-2gb.exfat|1787822080|681877692

@@ -148,6 +148,30 @@ if (-not (Test-Path $batchPath)) {
 & cmd /c "`"$batchPath`" `"$imagePath`" `"$sourcePath`""
 
 Write-Host ""
+Write-Host "Cleaning up OSFMount processes..." -ForegroundColor Cyan
+
+# Final cleanup: attempt graceful dismount of any lingering mounts
+$attempts = 0
+$maxAttempts = 5
+while ($attempts -lt $maxAttempts) {
+    $osfProcess = Get-Process osfmount -ErrorAction SilentlyContinue
+    if (-not $osfProcess) {
+        Write-Host "  [+] OSFMount fully cleaned up" -ForegroundColor Green
+        break
+    }
+    
+    $attempts++
+    Write-Host "  Attempt $attempts/$maxAttempts to clean up OSFMount..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 1
+}
+
+if ($osfProcess) {
+    Write-Host "  [!] Force-terminating remaining OSFMount processes..." -ForegroundColor Yellow
+    Stop-Process -Name osfmount -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
+Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
 Write-Host "Done! Check $outputPath for the exFAT and .zst files" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
