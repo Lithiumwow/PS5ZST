@@ -82,12 +82,23 @@ if (-not (Test-Path $osfmountPath)) {
     exit 1
 }
 
+# Pre-create the empty file using fsutil (faster for large files)
+Write-Host "Pre-allocating $imageSizeGB GB file..." -ForegroundColor Cyan
+$imageSizeBytes = $imageSizeMB * 1024 * 1024
+try {
+    fsutil file createnew "$imagePath" $imageSizeBytes | Out-Null
+    Write-Host "File pre-allocated: $imagePath" -ForegroundColor Green
+} catch {
+    Write-Host "ERROR: Failed to create file: $_" -ForegroundColor Red
+    exit 1
+}
+
 # Create and mount the image
 Write-Host "Mounting image..." -ForegroundColor Cyan
-& $osfmountPath -a -t vm -s "$($imageSizeMB)M" -o format:exfat -m "#:" -f "$imagePath"
+& $osfmountPath -a -t file -o format:exfat -m "#:" -f "$imagePath"
 
 # Wait a moment for mount to complete
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
 
 # Find the mounted drive letter
 $mountedDrive = $null
