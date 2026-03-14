@@ -2,7 +2,9 @@
 param()
 
 # Check if running as admin
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$principal = New-Object Security.Principal.WindowsPrincipal($identity)
+$isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
     # Re-run as admin
@@ -31,7 +33,7 @@ $osfmountPaths = @(
 $osfmountFound = $false
 foreach ($path in $osfmountPaths) {
     if (Test-Path $path) {
-        Write-Host "  ✓ OSFMount found at: $path" -ForegroundColor Green
+        Write-Host "  [+] OSFMount found at: $path" -ForegroundColor Green
         $osfmountFound = $true
         break
     }
@@ -42,7 +44,7 @@ if (-not $osfmountFound) {
     try {
         $cmd = Get-Command "osfmount.com" -ErrorAction SilentlyContinue
         if ($cmd) {
-            Write-Host "  ✓ OSFMount found in PATH" -ForegroundColor Green
+            Write-Host "  [+] OSFMount found in PATH" -ForegroundColor Green
             $osfmountFound = $true
         }
     } catch {
@@ -63,10 +65,10 @@ if (-not $osfmountFound) {
         
         # Verify installation
         if (Test-Path "${env:ProgramFiles}\PassMark\OSFMount\osfmount.com") {
-            Write-Host "  ✓ OSFMount installed successfully" -ForegroundColor Green
+            Write-Host "  [+] OSFMount installed successfully" -ForegroundColor Green
             $osfmountFound = $true
         } elseif (Test-Path "${env:ProgramFiles(x86)}\PassMark\OSFMount\osfmount.com") {
-            Write-Host "  ✓ OSFMount installed successfully (x86)" -ForegroundColor Green
+            Write-Host "  [+] OSFMount installed successfully (x86)" -ForegroundColor Green
             $osfmountFound = $true
         }
     } catch {

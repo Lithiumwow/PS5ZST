@@ -23,6 +23,40 @@ That's it! The script will:
 6. ✅ Compress to .zst with real-time progress
 7. ✅ Show both files ready in output folder
 
+## Setup Instructions (First Time)
+
+### Step 1: Clone/Download Repository
+
+```powershell
+# Option A: Clone with Git
+git clone <your-repo-url>
+cd SDKPS5FTPandNewprojecthere
+
+# Option B: Download ZIP and extract
+# Then open PowerShell in the extracted folder
+```
+
+### Step 2: Install Python Requirements
+
+Open PowerShell in the repository folder and run:
+
+```powershell
+pip install zstandard
+```
+
+### Step 3: Run the Generator
+
+```powershell
+.\run-generator.ps1
+```
+
+PowerShell will prompt for:
+1. **Source folder path**: Your game package folder (e.g., `C:\path\to\PPSA04264`)
+2. **Output folder path**: Where to save the exFAT and .zst files (e.g., `E:\Compressed`)
+3. **Confirmation**: Review settings and confirm to proceed
+
+The script handles everything automatically and will display progress as it works.
+
 ## Included Files
 
 - `run-generator.ps1` : **Main script** — One-button workflow with auto-elevation and OSFMount checking
