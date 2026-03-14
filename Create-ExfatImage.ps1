@@ -84,14 +84,14 @@ if (-not (Test-Path $osfmountPath)) {
 
 # Create and mount the image
 Write-Host "Mounting image..." -ForegroundColor Cyan
-& $osfmountPath -a -t vm -of vmdk -size "$($imageSizeMB)M" -fstype EXFAT "$imagePath"
+& $osfmountPath -a -t vm -s "$($imageSizeMB)M" -o format:exfat -m "#:" -f "$imagePath"
 
 # Wait a moment for mount to complete
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 3
 
 # Find the mounted drive letter
 $mountedDrive = $null
-$drives = Get-Volume | Where-Object {$_.FileSystem -eq "exFAT"} | Select-Object -First 1
+$drives = Get-Volume | Where-Object {$_.FileSystem -eq "exFAT"} | Sort-Object -Property DriveLetter -Descending | Select-Object -First 1
 if ($drives) {
     $mountedDrive = $drives.DriveLetter + ":"
     Write-Host "Image mounted as: $mountedDrive" -ForegroundColor Green
