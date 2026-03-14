@@ -22,10 +22,16 @@ if (-not $SourceFolder) {
     $SourceFolder = Read-Host "Enter full path to game folder (e.g., D:\Games\PPSA04264)"
 }
 
+# Remove quotes if user included them
+$SourceFolder = $SourceFolder -replace '^["'']|["'']$'
+
 if (-not $OutputFolder) {
     Write-Host "`nStep 2: Select Output Folder" -ForegroundColor Yellow
     $OutputFolder = Read-Host "Enter full path for output folder (e.g., E:\Compressed)"
 }
+
+# Remove quotes if user included them
+$OutputFolder = $OutputFolder -replace '^["'']|["'']$'
 
 # Validate source folder exists
 if (-not (Test-Path $SourceFolder -PathType Container)) {
