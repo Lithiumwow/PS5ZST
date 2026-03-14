@@ -88,13 +88,14 @@ if (-not $osfmountFound) {
 Write-Host ""
 
 # Get input from user
-$sourcePath = Read-Host "Enter game package folder (e.g., C:\path\to\PPSA04264)"
-$outputPath = Read-Host "Enter output folder for exFAT and .zst (e.g., E:\Compressed)"
+$sourcePath = (Read-Host "Enter game package folder (e.g., C:\path\to\PPSA04264)").Trim('" ')
+$outputPath = (Read-Host "Enter output folder for exFAT and .zst (e.g., E:\Compressed)").Trim('" ')
 
 # Validate paths
 if (-not (Test-Path $sourcePath -PathType Container)) {
     Write-Host ""
     Write-Host "ERROR: Source folder not found: $sourcePath" -ForegroundColor Red
+    Write-Host "Tip: Paste path WITHOUT quotes" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
 }
@@ -102,6 +103,7 @@ if (-not (Test-Path $sourcePath -PathType Container)) {
 if (-not (Test-Path $outputPath -PathType Container)) {
     Write-Host ""
     Write-Host "ERROR: Output folder not found: $outputPath" -ForegroundColor Red
+    Write-Host "Tip: Paste path WITHOUT quotes" -ForegroundColor Yellow
     Read-Host "Press Enter to exit"
     exit 1
 }
