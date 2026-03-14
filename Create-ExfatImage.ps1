@@ -93,38 +93,93 @@ try {
     exit 1
 }
 
-# Create and mount the image (without formatting - will format after mount)
+# Create and mount the image - let OSFMount auto-assign since Z: had issues
 Write-Host "Mounting image..." -ForegroundColor Cyan
-& $osfmountPath -a -t file -m "#:" -f "$imagePath" 2>&1 | Where-Object {$_ -match "Created device|->"}
 
-# Wait for mount to complete
-Start-Sleep -Seconds 3
+# First, clean up any existing OSFMount instances
+cmd /c "taskkill /IM osfmount.exe /F /T" 2>$null
+Start-Sleep -Seconds 2
 
-# Find the newly mounted drive (will have RAW filesystem initially)
-$mountedDrive = $null
-$allDrives = Get-Volume | Sort-Object -Property DriveLetter -Descending
-foreach ($drive in $allDrives) {
-    if ($drive.DriveLetter) {
-        $mountedDrive = $drive.DriveLetter + ":"
-        Write-Host "Found mounted drive: $mountedDrive" -ForegroundColor Green
-        break
-    }
+# Mount with auto-assignment of drive letter
+$osfOutput = & $osfmountPath -a -t file -m "#:" -f "$imagePath" 2>&1
+Write-Host "Mount output: $osfOutput" -ForegroundColor Gray
+
+# Parse the output to find the drive letter (e.g., "Created device 2: G: ->")
+$driveMatch = $osfOutput | Select-String -Pattern "Created device.*: ([A-Z]:)"
+if ($driveMatch) {
+    $mountedDrive = $driveMatch.Matches[0].Groups[1].Value
+    Write-Host "Image mounted as: $mountedDrive" -ForegroundColor Green
+} else {
+    Write-Host "ERROR: Could not parse mounted drive from OSFMount output!" -ForegroundColor Red
+    Write-Host "Output was: $osfOutput" -ForegroundColor Yellow
+    exit 1
 }
 
-if (-not $mountedDrive) {
-    Write-Host "ERROR: Could not find mounted drive!" -ForegroundColor Red
+# Wait for mount to complete and become accessible
+Write-Host "Waiting for mount to stabilize..." -ForegroundColor Gray
+Start-Sleep -Seconds 5
+
+# Verify mount is accessible with retries
+$maxRetries = 10
+$retry = 0
+while ($retry -lt $maxRetries) {
+    if (Test-Path "$mountedDrive\") {
+        Write-Host "Drive is now accessible!" -ForegroundColor Green
+        break
+    }
+    $retry++
+    Write-Host "Waiting for drive to be accessible... (attempt $retry/$maxRetries)" -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
+}
+
+if ($retry -eq $maxRetries) {
+    Write-Host "ERROR: Failed to access mounted drive $mountedDrive after $maxRetries attempts!" -ForegroundColor Red
+    cmd /c "taskkill /IM osfmount.exe /F /T" 2>$null
     exit 1
 }
 
 # Format the drive to exFAT
 Write-Host "Formatting $mountedDrive to exFAT..." -ForegroundColor Cyan
 try {
-    format $mountedDrive /FS:exFAT /Q | Out-Null
+    & cmd /c "echo Y | format $mountedDrive /FS:exFAT /Q /Y" 2>&1 | Out-Null
     Write-Host "Drive formatted successfully!" -ForegroundColor Green
-    Start-Sleep -Seconds 2
+    
+    # After format, Windows may unmount, so wait and check
+    Write-Host "Waiting for system to stabilize after format..." -ForegroundColor Gray
+    Start-Sleep -Seconds 5
+    
+    if (-not (Test-Path "$mountedDrive\")) {
+        Write-Host "WARNING: Format disconnected the drive, remounting image..." -ForegroundColor Yellow
+        
+        # Kill osfmount and remount fresh
+        cmd /c "taskkill /IM osfmount.exe /F /T" 2>$null
+        Start-Sleep -Seconds 2
+        
+        # Remount to auto-assigned drive
+        Write-Host "Remounting image..." -ForegroundColor Cyan
+        $remountOutput = & $osfmountPath -a -t file -m "#:" -f "$imagePath" 2>&1
+        Write-Host "Remount output: $remountOutput" -ForegroundColor Gray
+        Start-Sleep -Seconds 3
+        
+        # Parse new drive letter
+        $newDriveMatch = $remountOutput | Select-String -Pattern "Created device.*: ([A-Z]:)"
+        if ($newDriveMatch) {
+            $mountedDrive = $newDriveMatch.Matches[0].Groups[1].Value
+            Write-Host "Successfully remounted to $mountedDrive" -ForegroundColor Green
+        } else {
+            Write-Host "ERROR: Could not remount image!" -ForegroundColor Red
+            exit 1
+        }
+    }
 } catch {
     Write-Host "ERROR: Failed to format drive: $_" -ForegroundColor Red
-    & $osfmountPath -d -m $mountedDrive | Out-Null
+    cmd /c "taskkill /IM osfmount.exe /F /T" 2>$null
+    exit 1
+}
+
+# Verify drive exists before copying
+if (-not (Test-Path "$mountedDrive\")) {
+    Write-Host "ERROR: Drive $mountedDrive is not accessible!" -ForegroundColor Red
     exit 1
 }
 
@@ -139,7 +194,7 @@ try {
 } catch {
     Write-Host "ERROR during copy: $_" -ForegroundColor Red
     Write-Host "Attempting to unmount..." -ForegroundColor Yellow
-    & $osfmountPath -d -m $mountedDrive
+    & $osfmountPath -d -m $mountedDrive 2>&1 | Out-Null
     exit 1
 }
 

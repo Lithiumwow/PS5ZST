@@ -133,6 +133,8 @@ function Format-Bytes([Int64]$bytes) {
 
 function Get-FreeDriveLetter {
   $used = (Get-PSDrive -PSProvider FileSystem).Name
+  # Add commonly locked drive letters that may not be reported by Get-PSDrive (e.g., OSFMount phantom drives)
+  $used += @("G", "H", "I", "J", "K", "L")
   foreach ($code in 68..90) {
     $letter = [char]$code
     if ($used -notcontains [string]$letter) { return [string]$letter }

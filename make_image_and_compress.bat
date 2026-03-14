@@ -55,9 +55,9 @@ echo [Step 1/2] Creating exFAT image...
 echo.
 
 if not "!Size!"=="" (
-    call make_image.bat "!ImagePath!" "!SourceDir!" "!Size!"
+    call "%~dp0make_image.bat" "!ImagePath!" "!SourceDir!" "!Size!"
 ) else (
-    call make_image.bat "!ImagePath!" "!SourceDir!"
+    call "%~dp0make_image.bat" "!ImagePath!" "!SourceDir!"
 )
 
 if %errorlevel% neq 0 (
@@ -66,12 +66,29 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-REM Step 2: Compress to ZST
+REM Step 1.5: Wait for OSFMount to fully complete
 echo.
+echo [Step 1.5/2] Waiting for OSFMount process to complete...
+echo.
+
+REM Force-kill OSFMount to ensure clean state and full resource release
+taskkill /IM osfmount.exe /F /T 2>nul
+if %errorlevel% equ 0 (
+    echo   - OSFMount process terminated
+) else (
+    echo   - OSFMount not running (already cleaned up)
+)
+
+REM Wait for file handles to fully release
+timeout /t 3 /nobreak
+echo   - Waiting 3 seconds for file handles to release...
+echo.
+
+REM Step 2: Compress to ZST
 echo [Step 2/2] Compressing to .zst...
 echo.
 
-python compress_image.py "!ImagePath!" "!ZstOutput!"
+python "%~dp0compress_image.py" "!ImagePath!" "!ZstOutput!"
 
 if %errorlevel% equ 0 (
     echo.
