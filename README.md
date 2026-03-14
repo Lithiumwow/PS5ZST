@@ -6,27 +6,93 @@ This project uses:
 - PC-side compressor to create `.zst` files plus a `manifest.txt`
 - PS5-side decompressor ELF to restore files to target path
 
+## Quick Start
+
+**Create exFAT + ZST with one command (Windows, PowerShell):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run-generator.ps1
+```
+
+That's it! The script will:
+1. ✅ Auto-elevate to Administrator (one UAC prompt)
+2. ✅ Check for OSFMount (downloads via winget if missing)
+3. ✅ Ask for source folder (your game package)
+4. ✅ Ask for output folder (where to save files)
+5. ✅ Create 88+ GB exFAT image
+6. ✅ Compress to .zst with real-time progress
+7. ✅ Show both files ready in output folder
+
 ## Included Files
 
-- `compress_pkg.py` : compresses a game folder into `.zst` files and manifest
-- `compress_image.py` : compresses a single `.exfat` image to `.exfat.zst`
-- `make_image_and_compress.bat` : creates `.exfat` and automatically compresses to `.zst` (Windows, requires Admin)
-- `New-OsfExfatImage.ps1` : PowerShell backend for `make_image_and_compress.bat`
-- `ZSTDecompressionPS5.elf` : ready PS5 decompressor ELF
+- `run-generator.ps1` : **Main script** — One-button workflow with auto-elevation and OSFMount checking
+- `make_image_and_compress.bat` : Creates `.exfat` and automatically compresses to `.zst` (orchestrator)
+- `compress_image.py` : Compresses a single `.exfat` image to `.exfat.zst` with progress tracking
+- `make_image.bat` : Wrapper for PowerShell backend
+- `New-OsfExfatImage.ps1` : Core engine for exFAT creation via OSFMount
+- `compress_pkg.py` : Compresses a game folder into `.zst` files and manifest (alternative method)
+- `ZSTDecompressionPS5.elf` : Ready PS5 decompressor ELF
 
 ## Requirements (PC)
 
+- Windows 10/11
+- PowerShell 5.1+
+- Administrator access (script auto-elevates)
 - Python 3
 - Python package: `zstandard`
+- **OSFMount by PassMark** (script auto-installs via winget if missing)
 
-Install:
+Install Python package:
 
 ```bash
 pip install zstandard
 ```
 
-## Create ZST Package
+## Usage: Create exFAT + ZST (Recommended)
 
+**One command to rule them all:**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run-generator.ps1
+```
+
+The script will:
+
+1. **Auto-elevate to Administrator** — You'll see one UAC prompt
+2. **Check for OSFMount** — If missing, automatically installs via winget
+3. **Ask for paths:**
+   - Source: Your game package folder (e.g., `C:\path\to\PPSA04264`)
+   - Output: Where to save exFAT and .zst files (e.g., `E:\Compressed`)
+4. **Validate paths** — Confirms both folders exist
+5. **Show configuration** — Displays what will happen, asks for confirmation
+6. **Create exFAT image** — Mounts via OSFMount, formats to exFAT, copies all game data
+7. **Compress automatically** — Real-time progress shows % complete, speed (MB/s), and ETA
+8. **Output ready** — Both `.exfat` (88+ GB) and `.exfat.zst` (compressed) files ready
+
+**Example interaction:**
+
+```
+Enter game package folder (e.g., C:\path\to\PPSA04264): C:\Games\PPSA17221
+Enter output folder for exFAT and .zst (e.g., E:\Compressed): D:\PS5_Output
+
+Configuration:
+  Source:  C:\Games\PPSA17221
+  Output:  D:\PS5_Output
+  Image:   D:\PS5_Output\PPSA17221.exfat
+
+Proceed with generation? (y/n): y
+```
+
+Then monitor the progress:
+
+```
+[12.5%] 11.00 GB read | 150.0 MB/s | ETA:  65.3 min
+[25.0%] 22.00 GB read | 145.0 MB/s | ETA:  62.1 min
+```
+
+## Alternative: Create ZST Package (Per-File Method)
+
+If you prefer compressing files individually:
 
 ```bash
 python compress_pkg.py <game-folder> <output-folder> --level 3
@@ -35,7 +101,7 @@ python compress_pkg.py <game-folder> <output-folder> --level 3
 Example:
 
 ```bash
-python compress_pkg.py <src_folder> <output_folder> --level 3
+python compress_pkg.py C:\Games\PPSA17221 D:\PS5_Output --level 3
 ```
 
 ### What `--level` means
@@ -58,16 +124,61 @@ Output folder contains:
 - many `.zst` files
 - `manifest.txt`
 
+## Troubleshooting
+
+### OSFMount fails to install
+
+**If winget install fails:**
+
+1. Download from official site: https://www.passmark.com/osfmount/
+2. Run the installer and follow prompts
+3. Add OSFMount folder to Windows PATH (System Settings → Environment Variables)
+4. Restart PowerShell and try again
+
+### Script asks for admin but closes
+
+Make sure you're NOT right-clicking and selecting "Run as administrator" first. Instead:
+
+```powershell
+# Just run it normally - the script auto-elevates
+powershell -ExecutionPolicy Bypass -File run-generator.ps1
+```
+
+### Paths not found errors
+
+- Use full paths: `C:\Users\YourName\Desktop\PPSA17221` not `~/PPSA17221`
+- Don't use quotes unless the path has spaces
+- Check path exists in File Explorer first
+
+### Compression seems slow or stuck
+
+- The progress updates every 500MB (expected for large files)
+- ~150 MB/s is normal speed (depends on disk I/O)
+- Game data doesn't compress well (97%+ ratio typical)
+- Don't close the window — let it complete
+
+### "Drive letter in use" error
+
+The script handles this automatically by:
+- Detecting phantom OSFMount drives and skipping them
+- Using M: drive which is typically available
+- Cleaning up OSFMount processes between runs
+
+If you still see this error:
+- Close any open file explorer windows pointing to mounted drives
+- Run: `taskkill /IM osfmount.exe /F /T` in admin PowerShell
+- Try again
+
 ## About ZST Format
 
 `ZST` (Zstandard) is a modern lossless compression format designed for strong speed/ratio balance.
 
-
 How this project uses ZST:
 
-- `compress_pkg.py` compresses each file into a matching `.zst` file.
-- `manifest.txt` stores source and destination mapping plus sizes.
-- `ZSTDecompressionPS5.elf` reads the manifest and restores files in the original folder layout.
+- **Single image method** (recommended): `run-generator.ps1` creates one exFAT image and compresses it
+- **Per-file method**: `compress_pkg.py` compresses each file individually with manifest
+- `manifest.txt` stores source and destination mapping plus sizes
+- `ZSTDecompressionPS5.elf` reads the manifest and restores files in the original folder layout
 
 
 ## Transfer To PS5

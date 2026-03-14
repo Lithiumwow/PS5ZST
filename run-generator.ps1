@@ -18,6 +18,73 @@ Write-Host "  exFAT Image Generator + Compressor" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
+# Check for OSFMount
+Write-Host "Checking for OSFMount.com..." -ForegroundColor Cyan
+
+$osfmountPaths = @(
+    "${env:ProgramFiles}\OSFMount\osfmount.com",
+    "${env:ProgramFiles(x86)}\OSFMount\osfmount.com",
+    "${env:ProgramFiles}\PassMark\OSFMount\osfmount.com",
+    "${env:ProgramFiles(x86)}\PassMark\OSFMount\osfmount.com"
+)
+
+$osfmountFound = $false
+foreach ($path in $osfmountPaths) {
+    if (Test-Path $path) {
+        Write-Host "  ✓ OSFMount found at: $path" -ForegroundColor Green
+        $osfmountFound = $true
+        break
+    }
+}
+
+if (-not $osfmountFound) {
+    # Check if it's in PATH
+    try {
+        $cmd = Get-Command "osfmount.com" -ErrorAction SilentlyContinue
+        if ($cmd) {
+            Write-Host "  ✓ OSFMount found in PATH" -ForegroundColor Green
+            $osfmountFound = $true
+        }
+    } catch {
+        # Not found
+    }
+}
+
+if (-not $osfmountFound) {
+    Write-Host ""
+    Write-Host "OSFMount not found. Installing via winget..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    # Try to install via winget
+    try {
+        Write-Host "Running: winget install --exact --quiet PassMark.OSFMount" -ForegroundColor Cyan
+        $installResult = & winget install --exact --quiet PassMark.OSFMount
+        Start-Sleep -Seconds 3
+        
+        # Verify installation
+        if (Test-Path "${env:ProgramFiles}\PassMark\OSFMount\osfmount.com") {
+            Write-Host "  ✓ OSFMount installed successfully" -ForegroundColor Green
+            $osfmountFound = $true
+        } elseif (Test-Path "${env:ProgramFiles(x86)}\PassMark\OSFMount\osfmount.com") {
+            Write-Host "  ✓ OSFMount installed successfully (x86)" -ForegroundColor Green
+            $osfmountFound = $true
+        }
+    } catch {
+        Write-Host "  ! winget install failed" -ForegroundColor Yellow
+    }
+}
+
+if (-not $osfmountFound) {
+    Write-Host ""
+    Write-Host "ERROR: OSFMount could not be installed via winget." -ForegroundColor Red
+    Write-Host "Please install OSFMount manually from: https://www.passmark.com/osfmount/" -ForegroundColor Yellow
+    Write-Host ""
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+Write-Host ""
+
 # Get input from user
 $sourcePath = Read-Host "Enter game package folder (e.g., C:\path\to\PPSA04264)"
 $outputPath = Read-Host "Enter output folder for exFAT and .zst (e.g., E:\Compressed)"
