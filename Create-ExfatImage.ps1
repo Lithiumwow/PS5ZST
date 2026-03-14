@@ -93,21 +93,38 @@ try {
     exit 1
 }
 
-# Create and mount the image
+# Create and mount the image (without formatting - will format after mount)
 Write-Host "Mounting image..." -ForegroundColor Cyan
-& $osfmountPath -a -t file -o format:exfat -m "#:" -f "$imagePath"
+& $osfmountPath -a -t file -m "#:" -f "$imagePath" 2>&1 | Where-Object {$_ -match "Created device|->"}
 
-# Wait a moment for mount to complete
-Start-Sleep -Seconds 5
+# Wait for mount to complete
+Start-Sleep -Seconds 3
 
-# Find the mounted drive letter
+# Find the newly mounted drive (will have RAW filesystem initially)
 $mountedDrive = $null
-$drives = Get-Volume | Where-Object {$_.FileSystem -eq "exFAT"} | Sort-Object -Property DriveLetter -Descending | Select-Object -First 1
-if ($drives) {
-    $mountedDrive = $drives.DriveLetter + ":"
-    Write-Host "Image mounted as: $mountedDrive" -ForegroundColor Green
-} else {
-    Write-Host "ERROR: Could not find mounted exFAT drive!" -ForegroundColor Red
+$allDrives = Get-Volume | Sort-Object -Property DriveLetter -Descending
+foreach ($drive in $allDrives) {
+    if ($drive.DriveLetter) {
+        $mountedDrive = $drive.DriveLetter + ":"
+        Write-Host "Found mounted drive: $mountedDrive" -ForegroundColor Green
+        break
+    }
+}
+
+if (-not $mountedDrive) {
+    Write-Host "ERROR: Could not find mounted drive!" -ForegroundColor Red
+    exit 1
+}
+
+# Format the drive to exFAT
+Write-Host "Formatting $mountedDrive to exFAT..." -ForegroundColor Cyan
+try {
+    format $mountedDrive /FS:exFAT /Q | Out-Null
+    Write-Host "Drive formatted successfully!" -ForegroundColor Green
+    Start-Sleep -Seconds 2
+} catch {
+    Write-Host "ERROR: Failed to format drive: $_" -ForegroundColor Red
+    & $osfmountPath -d -m $mountedDrive | Out-Null
     exit 1
 }
 
